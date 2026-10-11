@@ -26,3 +26,4 @@
 
 - [Create virtual network interfaces on Linux](https://www.thelinuxvault.net/blog/linux-create-virtual-network-interface/)
 - [`ip tuntap` examples](https://baturin.org/docs/iproute2/#ip-tuntap)
+- https://www.kernel.org/doc/html/latest/networking/tuntap.html
