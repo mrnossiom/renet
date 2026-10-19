@@ -1,53 +1,15 @@
 use clap::Parser;
-use nix::{
-	ioctl_write_ptr_bad,
-	libc::{self, ifreq},
+use std::{fs, io::Read, path::PathBuf};
+
+use crate::proto::{
+	arp,
+	ethernet::{self, EtherType},
 };
-use std::{
-	fs,
-	io::Read,
-	mem::{MaybeUninit, transmute},
-	os::fd::AsRawFd,
-	path::PathBuf,
-};
-use zerocopy::FromBytes;
 
 mod config;
+mod proto;
 mod raw;
-
-ioctl_write_ptr_bad!(tun_set_interface, libc::TUNSETIFF, ifreq);
-
-#[derive(Debug)]
-pub(crate) enum EtherType {
-	/// Internet Protocol v4
-	IPv4,
-	/// Address Resolution Protocol
-	Arp,
-	/// Internet Protocol v6
-	IPv6,
-}
-
-impl TryFrom<u16> for EtherType {
-	type Error = ();
-	fn try_from(value: u16) -> Result<Self, Self::Error> {
-		match value {
-			0x0800 => Ok(Self::IPv4),
-			0x0806 => Ok(Self::Arp),
-			0x86DD => Ok(Self::IPv6),
-			_ => Err(()),
-		}
-	}
-}
-
-impl From<EtherType> for u16 {
-	fn from(val: EtherType) -> Self {
-		match val {
-			EtherType::IPv4 => 0x0800,
-			EtherType::Arp => 0x0806,
-			EtherType::IPv6 => 0x86DD,
-		}
-	}
-}
+mod tap;
 
 #[derive(Parser)]
 struct Args {
@@ -62,34 +24,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let config = toml::from_str::<config::Config>(&config_content).unwrap();
 	println!("{config:?}");
 
-	let mut file = fs::OpenOptions::new()
-		.read(true)
-		.write(true)
-		// .custom_flags(libc::O_NONBLOCK)
-		.open("/dev/net/tun")?;
-
-	let iff_name = c"tap0";
-
-	unsafe {
-		let mut ifreq = MaybeUninit::<ifreq>::zeroed().assume_init();
-		let raw_name = transmute::<&[u8], &[i8]>(iff_name.to_bytes_with_nul());
-		ifreq.ifr_name[..raw_name.len()].clone_from_slice(raw_name);
-
-		ifreq.ifr_ifru.ifru_flags |= (libc::IFF_TAP | libc::IFF_NO_PI) as i16;
-
-		tun_set_interface(file.as_raw_fd(), &raw const ifreq).unwrap();
-	}
+	let mut tap = tap::open_tap(c"tap0")?;
 
 	loop {
 		let mut buf = [0u8; u16::MAX as usize];
-		let nread = file.read(&mut buf).unwrap();
+		let nread = tap.read(&mut buf)?;
 		let raw_frame = &buf[..nread];
 
-		let eth_frame = raw::EthernetPacket::ref_from_bytes(raw_frame).unwrap();
+		let eth_frame = ethernet::Frame::parse(raw_frame).unwrap();
 		println!("{eth_frame:?}");
-
-		let ether_type: EtherType = eth_frame.ether_type.as_raw().try_into().unwrap();
+		let ether_type = eth_frame.ether_type().unwrap();
 		println!("{ether_type:?}");
+
+		match ether_type {
+			EtherType::ARP => {
+				let arp_frame = arp::Frame::parse(eth_frame.payload()).unwrap();
+				println!("{arp_frame:?}");
+			}
+			EtherType::IPV4 => {}
+			EtherType::IPV6 => {}
+			_ => todo!(),
+		}
 	}
 
 	// Ok(())
