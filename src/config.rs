@@ -14,5 +14,5 @@ pub(crate) enum EthConfig {
 		gateway: String,
 	},
 	#[serde(rename = "dhcp")]
-	Dhcp {},
+	Dhcp { hostname: String },
 }

@@ -4,6 +4,7 @@ use std::{fs, io::Read, path::PathBuf};
 use crate::proto::{
 	arp,
 	ethernet::{self, EtherType},
+	ipv4, ipv6,
 };
 
 mod config;
@@ -24,25 +25,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let config = toml::from_str::<config::Config>(&config_content).unwrap();
 	println!("{config:?}");
 
-	let mut tap = tap::open_tap(c"tap0")?;
+	let mut tap = tap::open(c"tap0")?;
 
 	loop {
 		let mut buf = [0u8; u16::MAX as usize];
 		let nread = tap.read(&mut buf)?;
-		let raw_frame = &buf[..nread];
+		let link_frame = &buf[..nread];
 
-		let eth_frame = ethernet::Frame::parse(raw_frame).unwrap();
-		println!("{eth_frame:?}");
-		let ether_type = eth_frame.ether_type().unwrap();
-		println!("{ether_type:?}");
+		println!();
 
-		match ether_type {
+		let (eth_head, net_frame) = ethernet::Header::parse(link_frame).unwrap();
+		println!("{eth_head:X?}");
+
+		match eth_head.ether_type().unwrap() {
 			EtherType::ARP => {
-				let arp_frame = arp::Frame::parse(eth_frame.payload()).unwrap();
-				println!("{arp_frame:?}");
+				let arp_frame = arp::Header::parse(net_frame).unwrap();
+				println!("{arp_frame:X?}");
 			}
-			EtherType::IPV4 => {}
-			EtherType::IPV6 => {}
+			EtherType::IPV4 => {
+				let (ipv4_header, transport_frame) = ipv4::Header::parse(net_frame).unwrap();
+				println!("{ipv4_header:X?}");
+			}
+			EtherType::IPV6 => {
+				let (ipv6_header, transport_frame) = ipv6::Header::parse(net_frame).unwrap();
+				println!("{ipv6_header:X?}");
+			}
 			_ => todo!(),
 		}
 	}

@@ -1,3 +1,17 @@
+# Create the TAP device with the name `tap0`
+# $ ip tuntap add name tap0 mode tap user $USER
+#
+# Give the binary the right capabilities (may not be needed if the tap has the right user)
+# $ setcap cap_net_admin+ep <binary>
+#
+# Route all packets for our subnet to the tap0
+# else the kernel has no idea where to send the packets
+# $ ip route add 10.42.42.0/24 dev tap0
+#
+# Assign a static ip to our machine (we may replace this with DHCP later)
+# We assign 1 within our subnet because the machine acts as the gateway
+# $ ip addr add 10.42.42.1/24 dev tap0
+
 [network.static]
 addr = "10.42.42.10/24"
 gateway = "10.42.42.1"

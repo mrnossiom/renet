@@ -24,38 +24,46 @@ impl From<u16> for EtherType {
 	}
 }
 
-impl Into<u16> for EtherType {
-	fn into(self) -> u16 {
-		self.0
+impl From<EtherType> for u16 {
+	fn from(val: EtherType) -> Self {
+		val.0
 	}
 }
 
 impl fmt::Debug for EtherType {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		write!(f, "EtherType({:04X})", self.0)
+		match *self {
+			Self::IPV4 => write!(f, "EtherType::IPV4"),
+			Self::ARP => write!(f, "EtherType::ARP"),
+			Self::IPV6 => write!(f, "EtherType::IPV6"),
+			Self(et) => write!(f, "EtherType({et:04X})"),
+		}
 	}
 }
 
-#[repr(C)]
-pub(crate) struct Frame<'a> {
-	octets: &'a [u8],
+#[repr(transparent)]
+pub(crate) struct Header {
+	octets: [u8],
 }
 
-impl<'a> Frame<'a> {
-	// layout [6 (dst)|6 (src)|]
+impl Header {
 	const HEADER_LEN: usize = 14;
-	const CRC_LEN: usize = 4;
+	// const CRC_LEN: usize = 4;
 
-	pub fn parse(octets: &'a [u8]) -> Result<Self, Error> {
-		if octets.len() < 64 {
+	pub fn parse(octets: &[u8]) -> Result<(&Self, &[u8]), Error> {
+		if octets.len() < Self::HEADER_LEN {
 			return Err(Error);
 		}
 
-		Ok(Self { octets })
+		let (header, next_frame) = octets.split_at(Self::HEADER_LEN);
+		// SAFETY: transparent cast
+		let header = unsafe { std::mem::transmute::<&[u8], &Header>(header) };
+
+		Ok((header, next_frame))
 	}
 }
 
-impl Frame<'_> {
+impl Header {
 	#[inline]
 	pub fn dst(&self) -> MacAddr {
 		(*self.octets[0..6].as_array::<6>().unwrap()).into()
@@ -75,21 +83,15 @@ impl Frame<'_> {
 			1536.. => Some(EtherType(tag)),
 		}
 	}
-
-	#[inline]
-	pub fn payload(&self) -> &[u8] {
-		let start = Self::HEADER_LEN;
-		let end = self.octets.len() - Self::CRC_LEN;
-		&self.octets[start..end]
-	}
 }
 
-impl fmt::Debug for Frame<'_> {
+impl fmt::Debug for Header {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		f.debug_struct("Frame")
-			.field("dst", &self.dst())
-			.field("src", &self.src())
-			.field("ether_type", &self.ether_type())
-			.finish_non_exhaustive()
+		let mut d = f.debug_struct("Frame");
+		d.field("dst", &self.dst()).field("src", &self.src());
+		if let Some(ether_type) = self.ether_type() {
+			d.field("ether_type", &ether_type);
+		}
+		d.finish_non_exhaustive()
 	}
 }

@@ -8,4 +8,6 @@ clap = { version = "4", features = ["derive"] }
 nix = { version = "0.31", features = ["ioctl", "net"] }
 serde = { version = "1", features = ["derive"] }
 toml = "1"
-zerocopy = { version = "0", features = ["derive"] }
+
+[workspace.metadata.typos.default.extend-identifiers]
+tha = "tha"

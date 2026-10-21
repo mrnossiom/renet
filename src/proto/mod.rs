@@ -1,16 +1,16 @@
 use std::fmt;
 
-use zerocopy::{FromBytes, Immutable, KnownLayout, Unaligned};
-
 pub(crate) mod arp;
 pub(crate) mod ethernet;
 pub(crate) mod ipv4;
 pub(crate) mod ipv6;
 
-#[derive(KnownLayout, Immutable, FromBytes, Unaligned)]
-#[repr(transparent)]
 pub(crate) struct MacAddr {
 	octets: [u8; 6],
+}
+
+impl MacAddr {
+	pub const BROADCAST: Self = Self { octets: [0xFF; _] };
 }
 
 impl From<[u8; 6]> for MacAddr {
@@ -28,6 +28,22 @@ impl fmt::Display for MacAddr {
 
 impl fmt::Debug for MacAddr {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		write!(f, "MacAddr({self})")
+		if self.octets.iter().all(|c| *c == 0xFF) {
+			write!(f, "MacAddr::BROADCAST")
+		} else {
+			write!(f, "MacAddr({self})")
+		}
 	}
+}
+
+enum State {
+	Link,
+	Network,
+	Transport,
+	Session,
+}
+
+pub(crate) struct Cursor<'a> {
+	next: State,
+	frame: &'a [u8],
 }

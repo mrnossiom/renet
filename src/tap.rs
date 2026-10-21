@@ -12,7 +12,7 @@ use std::{
 
 ioctl_write_ptr_bad!(tun_set_interface, libc::TUNSETIFF, ifreq);
 
-pub fn open_tap(if_name: &CStr) -> io::Result<File> {
+pub fn open(if_name: &CStr) -> io::Result<File> {
 	let file = fs::OpenOptions::new()
 		.read(true)
 		.write(true)
