@@ -1,5 +1,6 @@
 # Create the TAP device with the name `tap0`
 # $ ip tuntap add name tap0 mode tap user $USER
+# $ ip link set tap0 up
 #
 # Give the binary the right capabilities (may not be needed if the tap has the right user)
 # $ setcap cap_net_admin+ep <binary>

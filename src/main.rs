@@ -1,5 +1,5 @@
 use clap::Parser;
-use std::{fs, io::Read, path::PathBuf};
+use std::{ffi::CString, fs, io::Read, path::PathBuf, str::FromStr};
 
 use crate::proto::{
 	arp,
@@ -14,18 +14,21 @@ mod tap;
 
 #[derive(Parser)]
 struct Args {
+	#[clap(long, default_value = "tap0")]
+	device: CString,
+
 	#[clap(long)]
 	config: PathBuf,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-	let Args { config } = Args::parse();
+	let Args { device, config } = Args::parse();
 
 	let config_content = fs::read_to_string(config).unwrap();
 	let config = toml::from_str::<config::Config>(&config_content).unwrap();
 	println!("{config:?}");
 
-	let mut tap = tap::open(c"tap0")?;
+	let mut tap = tap::open(&device)?;
 
 	loop {
 		let mut buf = [0u8; u16::MAX as usize];
