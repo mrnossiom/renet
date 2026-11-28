@@ -7,6 +7,7 @@
   Ethernet II frames, as described in *IEEE 802.3*, are the most common.
 - [ ] IPv4 ([RFC 791])
 - [ ] IPv6 ([RFC 8200])
+- [ ] ICMP ([RFC 792])
 - [ ] TCP ([RFC 9293])
 - [ ] DNS ([RFC 1034], [RFC 1035])
 - [ ] ARP ([RFC 826])
@@ -15,6 +16,7 @@
 [wiki-ethernet-frame]: https://en.wikipedia.org/wiki/Ethernet_frame
 [ethernet-ieee-std]: https://standards.ieee.org/ieee/802.3/10422/
 [RFC 791]: https://www.rfc-editor.org/info/rfc791/
+[RFC 792]: https://www.rfc-editor.org/info/rfc792/
 [RFC 826]: https://www.rfc-editor.org/info/rfc826/
 [RFC 1034]: https://www.rfc-editor.org/info/rfc1034/
 [RFC 1035]: https://www.rfc-editor.org/info/rfc1035/

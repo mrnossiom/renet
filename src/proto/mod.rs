@@ -2,6 +2,7 @@ use std::fmt;
 
 pub(crate) mod arp;
 pub(crate) mod ethernet;
+pub(crate) mod icmp;
 pub(crate) mod ipv4;
 pub(crate) mod ipv6;
 
