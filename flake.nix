@@ -47,8 +47,8 @@
         {
           default = pkgs.mkShell {
             packages = with pkgs; [
-              pkg-config
               rust-toolchain
+              tcpdump
             ];
           };
         }
