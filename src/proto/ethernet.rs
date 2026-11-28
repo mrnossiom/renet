@@ -33,61 +33,72 @@ impl From<EtherType> for u16 {
 impl fmt::Debug for EtherType {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match *self {
-			Self::IPV4 => write!(f, "EtherType::IPV4"),
-			Self::ARP => write!(f, "EtherType::ARP"),
-			Self::IPV6 => write!(f, "EtherType::IPV6"),
+			Self::IPV4 => write!(f, "IPV4"),
+			Self::ARP => write!(f, "ARP"),
+			Self::IPV6 => write!(f, "IPV6"),
 			Self(et) => write!(f, "EtherType({et:04X})"),
 		}
 	}
 }
 
 #[repr(transparent)]
-pub(crate) struct Header {
+pub(crate) struct Packet {
 	octets: [u8],
 }
 
-impl Header {
-	const HEADER_LEN: usize = 14;
-	// const CRC_LEN: usize = 4;
+mod field {
+	pub(crate) use crate::proto::field::*;
 
-	pub fn parse(octets: &[u8]) -> Result<(&Self, &[u8]), Error> {
-		if octets.len() < Self::HEADER_LEN {
+	pub(crate) const DST_MAC: Field = 0..6;
+	pub(crate) const SRC_MAC: Field = 6..12;
+	pub(crate) const TAG: Field = 12..14;
+
+	pub(crate) const HEADER_END: usize = 14;
+}
+
+impl Packet {
+	pub fn parse(octets: &[u8]) -> Result<&Self, Error> {
+		if octets.len() < field::HEADER_END {
 			return Err(Error);
 		}
 
-		let (header, next_frame) = octets.split_at(Self::HEADER_LEN);
 		// SAFETY: transparent cast
-		let header = unsafe { std::mem::transmute::<&[u8], &Header>(header) };
+		let packet = unsafe { std::mem::transmute::<&[u8], &Packet>(octets) };
 
-		Ok((header, next_frame))
+		Ok(packet)
 	}
 }
 
-impl Header {
-	#[inline]
+impl Packet {
+	#[inline(always)]
 	pub fn dst(&self) -> MacAddr {
-		(*self.octets[0..6].as_array::<6>().unwrap()).into()
+		field::parse_bytes::<6>(&self.octets, field::DST_MAC).into()
 	}
 
-	#[inline]
+	#[inline(always)]
 	pub fn src(&self) -> MacAddr {
-		(*self.octets[6..12].as_array::<6>().unwrap()).into()
+		field::parse_bytes::<6>(&self.octets, field::SRC_MAC).into()
 	}
 
-	#[inline]
+	#[inline(always)]
 	pub fn ether_type(&self) -> Option<EtherType> {
-		let tag = u16::from_be_bytes(*self.octets[12..14].as_array().unwrap());
+		let tag = field::parse_u16(&self.octets, field::TAG);
 		match tag {
 			..1500 => None,
 			1500..1536 => None,
 			1536.. => Some(EtherType(tag)),
 		}
 	}
+
+	#[inline(always)]
+	pub(crate) fn payload(&self) -> &[u8] {
+		&self.octets[field::HEADER_END..]
+	}
 }
 
-impl fmt::Debug for Header {
+impl fmt::Debug for Packet {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		let mut d = f.debug_struct("Frame");
+		let mut d = f.debug_struct("Packet");
 		d.field("dst", &self.dst()).field("src", &self.src());
 		if let Some(ether_type) = self.ether_type() {
 			d.field("ether_type", &ether_type);

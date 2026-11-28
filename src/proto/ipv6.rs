@@ -1,5 +1,7 @@
 use std::{fmt, net::Ipv6Addr};
 
+use crate::proto::ipv4::Protocol;
+
 #[derive(Debug)]
 pub struct Error;
 
@@ -31,40 +33,62 @@ pub struct Error;
 /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 /// ```
 #[repr(transparent)]
-pub(crate) struct Header {
+pub(crate) struct Packet {
 	octets: [u8],
 }
 
-impl Header {
-	const HEADER_LEN: usize = 40;
+mod field {
+	pub(crate) use crate::proto::field::*;
 
-	pub fn parse(octets: &[u8]) -> Result<(&Self, &[u8]), Error> {
-		if octets.len() < Self::HEADER_LEN {
+	pub(crate) const PROTOCOL: Field = 6..7;
+	pub(crate) const SOURCE_ADDRESS: Field = 8..24;
+	pub(crate) const DESTINATION_ADDRESS: Field = 24..40;
+
+	pub(crate) const HEADER_END: usize = 40;
+}
+
+impl Packet {
+	pub fn parse(octets: &[u8]) -> Result<&Self, Error> {
+		if octets.len() < field::HEADER_END {
 			return Err(Error);
 		}
 
-		let (header, next_frame) = octets.split_at(Self::HEADER_LEN);
 		// SAFETY: transparent cast
-		let header = unsafe { std::mem::transmute::<&[u8], &Header>(header) };
-		Ok((header, next_frame))
+		let header = unsafe { std::mem::transmute::<&[u8], &Packet>(octets) };
+
+		Ok(header)
 	}
 }
 
-impl Header {
+impl Packet {
+	#[inline(always)]
 	pub(crate) fn src(&self) -> Ipv6Addr {
-		(*self.octets[8..24].as_array().unwrap()).into()
+		field::parse_bytes::<16>(&self.octets, field::SOURCE_ADDRESS).into()
 	}
 
+	#[inline(always)]
 	pub(crate) fn dst(&self) -> Ipv6Addr {
-		(*self.octets[24..40].as_array().unwrap()).into()
+		field::parse_bytes::<16>(&self.octets, field::DESTINATION_ADDRESS).into()
+	}
+
+	#[inline(always)]
+	pub(crate) fn protocol(&self) -> Protocol {
+		let proto = field::parse_u8(&self.octets, field::PROTOCOL);
+		Protocol::from(proto)
+	}
+
+	#[inline(always)]
+	pub(crate) fn payload(&self) -> &[u8] {
+		&self.octets[field::HEADER_END..]
 	}
 }
 
-impl fmt::Debug for Header {
+impl fmt::Debug for Packet {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		f.debug_struct("Header")
 			.field("src", &self.src())
 			.field("dst", &self.dst())
+			.field("protocol", &self.protocol())
 			.finish_non_exhaustive()
 	}
 }

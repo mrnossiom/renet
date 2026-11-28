@@ -38,11 +38,11 @@ impl From<AddressSpace> for u16 {
 }
 
 #[repr(transparent)]
-pub(crate) struct Header {
+pub(crate) struct Packet {
 	octets: [u8],
 }
 
-impl Header {
+impl Packet {
 	const HEADER_MIN_LEN: usize = 2 + 2 + 1 + 1;
 
 	pub fn parse(octets: &[u8]) -> Result<&Self, Error> {
@@ -50,12 +50,12 @@ impl Header {
 			return Err(Error);
 		}
 
-		let octets = unsafe { std::mem::transmute::<&[u8], &Header>(octets) };
+		let octets = unsafe { std::mem::transmute::<&[u8], &Packet>(octets) };
 		Ok(octets)
 	}
 }
 
-impl Header {
+impl Packet {
 	/// Hardware address space
 	#[inline]
 	pub fn hrd(&self) -> AddressSpace {
@@ -114,7 +114,7 @@ impl Header {
 	}
 }
 
-impl fmt::Debug for Header {
+impl fmt::Debug for Packet {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		f.debug_struct("Frame")
 			.field("hrd", &self.hrd())

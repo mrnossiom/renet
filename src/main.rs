@@ -1,5 +1,5 @@
 use clap::Parser;
-use std::{ffi::CString, fs, io::Read, path::PathBuf, str::FromStr};
+use std::{ffi::CString, fs, io::Read, path::PathBuf};
 
 use crate::proto::{
 	arp,
@@ -37,21 +37,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 		println!();
 
-		let (eth_head, net_frame) = ethernet::Header::parse(link_frame).unwrap();
-		println!("{eth_head:X?}");
+		let eth_packet = ethernet::Packet::parse(link_frame).unwrap();
+		println!("{eth_packet:?}");
 
-		match eth_head.ether_type().unwrap() {
+		match eth_packet.ether_type().unwrap() {
 			EtherType::ARP => {
-				let arp_frame = arp::Header::parse(net_frame).unwrap();
-				println!("{arp_frame:X?}");
+				let arp_packet = arp::Packet::parse(eth_packet.payload()).unwrap();
+				println!("{arp_packet:?}");
 			}
 			EtherType::IPV4 => {
-				let (ipv4_header, transport_frame) = ipv4::Header::parse(net_frame).unwrap();
-				println!("{ipv4_header:X?}");
+				let ipv4_packet = ipv4::Packet::parse(eth_packet.payload()).unwrap();
+				println!("{ipv4_packet:?}");
 			}
 			EtherType::IPV6 => {
-				let (ipv6_header, transport_frame) = ipv6::Header::parse(net_frame).unwrap();
-				println!("{ipv6_header:X?}");
+				let ipv6_packet = ipv6::Packet::parse(eth_packet.payload()).unwrap();
+				println!("{ipv6_packet:?}");
 			}
 			_ => todo!(),
 		}

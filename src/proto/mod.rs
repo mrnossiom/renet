@@ -5,6 +5,29 @@ pub(crate) mod ethernet;
 pub(crate) mod ipv4;
 pub(crate) mod ipv6;
 
+mod field {
+	use std::ops::Range;
+
+	pub(crate) type Field = Range<usize>;
+
+	#[inline(always)]
+	pub(crate) fn parse_u8(bytes: &[u8], field: Field) -> u8 {
+		bytes[field][0]
+	}
+	#[inline(always)]
+	pub(crate) fn parse_u16(bytes: &[u8], field: Field) -> u16 {
+		u16::from_be_bytes(*bytes[field].as_array().unwrap())
+	}
+	#[inline(always)]
+	pub(crate) fn parse_u32(bytes: &[u8], field: Field) -> u32 {
+		u32::from_be_bytes(*bytes[field].as_array().unwrap())
+	}
+	#[inline(always)]
+	pub(crate) fn parse_bytes<const N: usize>(bytes: &[u8], field: Field) -> [u8; N] {
+		*bytes[field].as_array().unwrap()
+	}
+}
+
 pub(crate) struct MacAddr {
 	octets: [u8; 6],
 }
